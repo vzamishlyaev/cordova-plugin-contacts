@@ -55,9 +55,6 @@ var contacts = {
     },
     
     simpleAllContacts:function(successCB, errorCB) {
-       if (!fields.length) {
-            errorCB && errorCB(new ContactError(ContactError.INVALID_ARGUMENT_ERROR));
-        } else {
             var win = function(result) {
                 var cs = [];
                 for (var i = 0, l = result.length; i < l; i++) {
@@ -66,7 +63,6 @@ var contacts = {
                 successCB(cs);
             };
             exec(win, errorCB, "Contacts", "simpleAllContacts");
-        }
     },
 
     /**
