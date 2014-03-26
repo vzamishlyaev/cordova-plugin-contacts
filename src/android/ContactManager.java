@@ -18,6 +18,10 @@
 */
 package org.apache.cordova.contacts;
 
+import android.content.ContentUris;
+import android.database.Cursor;
+import android.net.Uri;
+import android.provider.ContactsContract;
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.PluginResult;
@@ -25,6 +29,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import android.util.Log;
+import android.util.TimingLogger;
 
 public class ContactManager extends CordovaPlugin {
 
@@ -54,6 +59,7 @@ public class ContactManager extends CordovaPlugin {
      * @return                  True if the action was valid, false otherwise.
      */
     public boolean execute(String action, JSONArray args, final CallbackContext callbackContext) throws JSONException {
+    	final TimingLogger logger = new TimingLogger("MMMMM","Callback");
         /**
          * Check to see if we are on an Android 1.X device.  If we are return an error as we
          * do not support this as of Cordova 1.0.
@@ -114,6 +120,49 @@ public class ContactManager extends CordovaPlugin {
                 }
             });
         }
+        else if (action.equals("simpleAllContacts")) {
+            this.cordova.getThreadPool().execute(new Runnable() {
+                public void run() {
+
+                    String[] projection = new String[] { ContactsContract.Contacts._ID, ContactsContract.Contacts.DISPLAY_NAME};
+                    Cursor c = ContactManager.this.cordova.getActivity().getContentResolver().query(ContactsContract.Contacts.CONTENT_URI, projection, null,null,null);
+
+                    int colContactId = c.getColumnIndex(ContactsContract.Contacts._ID);
+                    int colDisplayName = c.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME);
+
+                    JSONArray allContacts = new JSONArray();
+                    if (c.getCount() > 0) {
+                        while (c.moveToNext() ) {
+                            try {
+
+                                String id = c.getString(colContactId);
+                                String name = c.getString(colDisplayName);
+
+                                Uri person = ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, (new Long(id)));
+                                Uri photoUri = Uri.withAppendedPath(person, ContactsContract.Contacts.Photo.CONTENT_DIRECTORY);
+
+                                JSONObject object = new JSONObject();
+                                object.put("id", id);
+                                object.put("displayName", name);
+                                object.put("photo", photoUri.toString());
+
+                                allContacts.put(object);
+                                //System.out.println(":::::::  " + object.toString());
+
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+
+                    logger.addSplit("callback here");
+                    logger.dumpToLog();
+
+                    callbackContext.success(allContacts);
+                }
+            });
+        }
+
         else {
             return false;
         }
