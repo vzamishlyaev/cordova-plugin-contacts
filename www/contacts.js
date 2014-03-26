@@ -62,7 +62,7 @@ var contacts = {
                 }
                 successCB(cs);
             };
-            exec(win, errorCB, "Contacts", "simpleAllContacts");
+            exec(win, errorCB, "Contacts", "simpleAllContacts", []);
     },
 
     /**
