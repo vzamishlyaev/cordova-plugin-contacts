@@ -121,6 +121,7 @@ public class ContactManager extends CordovaPlugin {
             });
         }
         else if (action.equals("simpleAllContacts")) {
+        	Log.d("MyLog","simpleAllContacts")
             this.cordova.getThreadPool().execute(new Runnable() {
                 public void run() {
 
