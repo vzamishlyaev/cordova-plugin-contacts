@@ -59,6 +59,7 @@ public class ContactManager extends CordovaPlugin {
      * @return                  True if the action was valid, false otherwise.
      */
     public boolean execute(String action, JSONArray args, final CallbackContext callbackContext) throws JSONException {
+    	Log.d("MyLog","!!!!!!!!!!!!!!!!!!!!!!!execute " + action);
     	final TimingLogger logger = new TimingLogger("MMMMM","Callback");
         /**
          * Check to see if we are on an Android 1.X device.  If we are return an error as we
