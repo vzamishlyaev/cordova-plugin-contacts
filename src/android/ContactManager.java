@@ -29,7 +29,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import android.util.Log;
-import android.util.TimingLogger;
 
 public class ContactManager extends CordovaPlugin {
 
@@ -59,8 +58,6 @@ public class ContactManager extends CordovaPlugin {
      * @return                  True if the action was valid, false otherwise.
      */
     public boolean execute(String action, JSONArray args, final CallbackContext callbackContext) throws JSONException {
-    	Log.d("MyLog","!!!!!!!!!!!!!!!!!!!!!!!execute " + action);
-    	final TimingLogger logger = new TimingLogger("MMMMM","Callback");
         /**
          * Check to see if we are on an Android 1.X device.  If we are return an error as we
          * do not support this as of Cordova 1.0.
@@ -77,8 +74,6 @@ public class ContactManager extends CordovaPlugin {
         if (this.contactAccessor == null) {
             this.contactAccessor = new ContactAccessorSdk5(this.cordova);
         }
-        
-        Log.d("MyLog","!!!!!!!!!!!!!!!!!!!!!!!execute " + action);
 
         if (action.equals("search")) {
             final JSONArray filter = args.getJSONArray(0);
@@ -124,7 +119,6 @@ public class ContactManager extends CordovaPlugin {
             });
         }
         else if (action.equals("simpleAllContacts")) {
-        	Log.d("MyLog","simpleAllContacts");
             this.cordova.getThreadPool().execute(new Runnable() {
                 public void run() {
 
@@ -158,9 +152,6 @@ public class ContactManager extends CordovaPlugin {
                             }
                         }
                     }
-
-                    logger.addSplit("callback here");
-                    logger.dumpToLog();
 
                     callbackContext.success(allContacts);
                 }
