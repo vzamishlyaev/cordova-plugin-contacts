@@ -76,6 +76,8 @@ public class ContactManager extends CordovaPlugin {
         if (this.contactAccessor == null) {
             this.contactAccessor = new ContactAccessorSdk5(this.cordova);
         }
+        
+        Log.d("MyLog","!!!!!!!!!!!!!!!!!!!!!!!execute " + action);
 
         if (action.equals("search")) {
             final JSONArray filter = args.getJSONArray(0);
