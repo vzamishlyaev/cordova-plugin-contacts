@@ -29,6 +29,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import android.util.Log;
+import android.util.TimingLogger;
 
 public class ContactManager extends CordovaPlugin {
 
@@ -58,6 +59,7 @@ public class ContactManager extends CordovaPlugin {
      * @return                  True if the action was valid, false otherwise.
      */
     public boolean execute(String action, JSONArray args, final CallbackContext callbackContext) throws JSONException {
+    	final TimingLogger logger = new TimingLogger("MMMMM","Callback");
         /**
          * Check to see if we are on an Android 1.X device.  If we are return an error as we
          * do not support this as of Cordova 1.0.
@@ -81,6 +83,8 @@ public class ContactManager extends CordovaPlugin {
             this.cordova.getThreadPool().execute(new Runnable() {
                 public void run() {
                     JSONArray res = contactAccessor.search(filter, options);
+                    logger.addSplit("callback here");
+                    logger.dumpToLog();
                     callbackContext.success(res);
                 }
             });
@@ -122,36 +126,74 @@ public class ContactManager extends CordovaPlugin {
             this.cordova.getThreadPool().execute(new Runnable() {
                 public void run() {
 
-                    String[] projection = new String[] { ContactsContract.Contacts._ID, ContactsContract.Contacts.DISPLAY_NAME};
-                    Cursor c = ContactManager.this.cordova.getActivity().getContentResolver().query(ContactsContract.Contacts.CONTENT_URI, projection, null,null,null);
-
-                    int colContactId = c.getColumnIndex(ContactsContract.Contacts._ID);
-                    int colDisplayName = c.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME);
+                    Cursor data = cordova.getActivity().getContentResolver().query(ContactsContract.Data.CONTENT_URI,
+                            new String[]{ContactsContract.Data.CONTACT_ID, ContactsContract.Data.DISPLAY_NAME,
+                                    ContactsContract.Data.MIMETYPE, ContactsContract.Data.DATA1},
+                            ContactsContract.Data.MIMETYPE + " = ?  or " +
+                                    ContactsContract.Data.MIMETYPE + " = ? ",
+                            new String[]{ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE,
+                                    ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE
+                            }, null);
 
                     JSONArray allContacts = new JSONArray();
-                    if (c.getCount() > 0) {
-                        while (c.moveToNext() ) {
-                            try {
 
-                                String id = c.getString(colContactId);
-                                String name = c.getString(colDisplayName);
+                    JSONObject currentJsonObject = null;
+                    JSONArray phones = new JSONArray();
+                    JSONArray emails = new JSONArray();
 
-                                Uri person = ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, (new Long(id)));
-                                Uri photoUri = Uri.withAppendedPath(person, ContactsContract.Contacts.Photo.CONTENT_DIRECTORY);
+                    if (data.moveToFirst()) {
+                        int colContactId = data.getColumnIndex(ContactsContract.Data.CONTACT_ID);
+                        int colDisplayName = data.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME);
+                        int colMime = data.getColumnIndex(ContactsContract.Data.MIMETYPE);
+                        int colData = data.getColumnIndex(ContactsContract.Data.DATA1);
 
-                                JSONObject object = new JSONObject();
-                                object.put("id", id);
-                                object.put("displayName", name);
-                                object.put("photo", photoUri.toString());
+                        String oldContactId = null;
+                        String contactId;
+                        try {
 
-                                allContacts.put(object);
-                                //System.out.println(":::::::  " + object.toString());
+                            do {
+                                contactId = data.getString(colContactId);
+                                String mime = data.getString(colMime);
+                                String data1 = data.getString(colData);
 
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
+                                if (!contactId.equals(oldContactId)) {
+
+                                    if (currentJsonObject != null) {
+                                        putContact(allContacts, currentJsonObject, phones, emails);
+                                    }
+
+                                    phones = new JSONArray();
+                                    emails = new JSONArray();
+
+                                    currentJsonObject = new JSONObject();
+                                    currentJsonObject.put("id", contactId);
+                                    currentJsonObject.put("displayName", data.getString(colDisplayName));
+
+                                    if (!currentJsonObject.has("photos")) {
+                                        Uri person = ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, (new Long(contactId)));
+                                        Uri photoUri = Uri.withAppendedPath(person, ContactsContract.Contacts.Photo.CONTENT_DIRECTORY);
+                                        currentJsonObject.put("photos", new JSONArray().put(new JSONObject().put("value", photoUri.toString())));
+                                    }
+
+                                    processData(phones, emails, mime, data1);
+                                } else {
+                                    processData(phones, emails, mime, data1);
+                                }
+
+                                oldContactId = contactId;
+
+                            } while (data.moveToNext());
+                            putContact(allContacts, currentJsonObject, phones, emails); // put last processed contact
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
                     }
+
+                    data.close();
+
+
+                    logger.addSplit("callback here");
+                    logger.dumpToLog();
 
                     callbackContext.success(allContacts);
                 }
@@ -162,5 +204,24 @@ public class ContactManager extends CordovaPlugin {
             return false;
         }
         return true;
+    }
+
+    private void putContact(JSONArray allContacts, JSONObject currentJsonObject, JSONArray phones, JSONArray emails) throws JSONException {
+        if (phones.length() > 0) {
+            currentJsonObject.put("phoneNumbers", phones);
+        }
+        if (emails.length() > 0) {
+            currentJsonObject.put("emails", emails);
+        }
+
+        allContacts.put(currentJsonObject);
+    }
+
+    private void processData(JSONArray phones, JSONArray emails, String mime, String data1) throws JSONException {
+        if (mime.equals(ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)) {
+            phones.put(new JSONObject().put("value", data1));
+        } else if (mime.equals(ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE)) {
+            emails.put(new JSONObject().put("value", data1));
+        }
     }
 }
